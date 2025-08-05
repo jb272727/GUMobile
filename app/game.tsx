@@ -1,4 +1,5 @@
-// game.tsx
+
+
 import React, { useEffect, useRef, useState } from 'react';
 import { Dimensions, View } from 'react-native';
 
@@ -8,7 +9,7 @@ interface Entity {
   x: number;
   y: number;
   scale: number;
-  velocityX: number; // now in px/sec
+  velocityX: number; // px/sec
 }
 
 const { width, height } = Dimensions.get('window');
@@ -31,7 +32,7 @@ export default function Game() {
 
     const loop = (timestamp: number) => {
       if (lastTime.current === null) lastTime.current = timestamp;
-      const delta = (timestamp - lastTime.current) / 1000; // seconds since last frame
+      const delta = (timestamp - lastTime.current) / 1000; // time in seconds since last frame
       lastTime.current = timestamp;
 
       setEntities(prev => updateEntities(prev, delta));
@@ -50,8 +51,8 @@ export default function Game() {
   function spawnEntity() {
     const { y, scale } = spawnPoints[Math.floor(Math.random() * 5)];
     const isBull = Math.random() < 0.5;
-    // velocities  in px/sec
-    const velocityX = isBull ? -80 : -300;
+    // velo px/sec
+    const velocityX = isBull ? (-150 + (Math.round(Math.random() * 61)) - 30) : -300;
     setEntities(prev => [
       ...prev,
       {
@@ -84,8 +85,8 @@ export default function Game() {
               position: 'absolute',
               left: ent.x,
               top: ent.y,
-              width: 30 * ent.scale,
-              height: 30 * ent.scale,
+              width: 50 * ent.scale,
+              height: 50 * ent.scale,
               backgroundColor: ent.type === 'bull' ? 'brown' : 'gray',
               borderRadius: ent.type === 'bull' ? 15 * ent.scale : 0,
             }}
