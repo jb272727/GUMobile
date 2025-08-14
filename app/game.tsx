@@ -1,11 +1,15 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Animated,
-  PanResponder,
-  Text,
-  useWindowDimensions,
-  View,
+	Animated,
+	PanResponder,
+	Text,
+	useWindowDimensions,
+	View,
+	Image,
 } from 'react-native';
+
+import cactusImg from '../assets/game/cactus.png';
+import bagImg from '../assets/game/bag.png';
 
 interface Entity {
 	id: number;
@@ -30,26 +34,21 @@ const spriteH = SPRITE_SIZE * 20;
 export default function Game() {
 	const { width, height } = useWindowDimensions();
 
-	// Score & lives
 	const [score, setScore] = useState(0);
-	const [lives] = useState(3);
-
-	// Active entities
+	const [lives, setLives] = useState(3);
 	const [entities, setEntities] = useState<Entity[]>([]);
 	const nextId = useRef(0);
 
-	// Captured animations
 	const [captured, setCaptured] = useState<Captured[]>([]);
-
-	// Timing
+	// timing
 	const lastTime = useRef<number | null>(null);
 	const rafId = useRef<number | null>(null);
 
-	// Lasso offsets
+	// lasso 
 	const lassoY = useRef(new Animated.Value(950)).current;
 	const lassoX = useRef(new Animated.Value(0)).current;
 
-	// Track current offsets (X already tracked)
+	// track current offsets - x already tracked
 	const startAbs = useRef(0);
 	const currentX = useRef(0);
 	useEffect(() => {
@@ -59,8 +58,7 @@ export default function Game() {
 		return () => lassoX.removeListener(id);
 	}, [lassoX]);
 
-	// Track Y so our collision rect follows the animated translateY
-	const currentY = useRef(950); // same as lassoY's initial value
+	const currentY = useRef(950); 
 	useEffect(() => {
 		const id = lassoY.addListener(({ value }) => {
 			currentY.current = value;
@@ -68,25 +66,24 @@ export default function Game() {
 		return () => lassoY.removeListener(id);
 	}, [lassoY]);
 
-	// Throw state
 	const [isThrowing, setIsThrowing] = useState(false);
 
-	// Layout split
+	// split the screen
 	const { topHeight, bottomHeight, spawnPoints } = useMemo(() => {
 		const th = (2 / 3) * height;
 		const bh = height - th;
 		const usable = th - 2 * SPRITE_SIZE;
 		const sp = Array.from({ length: 5 }, (_, i) => ({
 			y: usable * (i / 4),
-			scale: 0.6 + (i / 4) * 0.4,
+			scale: 1,
 		}));
 		return { topHeight: th, bottomHeight: bh, spawnPoints: sp };
 	}, [height]);
 
-	// Anchor at left edge
+	// left edge anchor
 	const staticLeft = 0;
 
-	// Gesture
+	// swipe up gesture recog
 	const panResponder = useMemo(
 		() =>
 			PanResponder.create({
@@ -126,7 +123,7 @@ export default function Game() {
 		]).start(() => {
 			setIsThrowing(false);
 			lassoY.setValue(950);
-			currentY.current = 950; // keep our ref in sync after the jump
+			currentY.current = 950; 
 		});
 	}
 
@@ -155,15 +152,14 @@ export default function Game() {
 			const delta = (ts - lastTime.current) / 1000;
 			lastTime.current = ts;
 
-			// Compute the TRUE lasso rect from style + current transforms
-			const bottomOffset = bottomHeight - SPRITE_SIZE * 2;            // from style
-			const lassoTopStatic = height - bottomOffset - spriteH;         // top if translateY=0
+			// transformations
+			const bottomOffset = bottomHeight - SPRITE_SIZE * 2;       
+			const lassoTopStatic = height - bottomOffset - spriteH;        
 			const lassoLeft = staticLeft + currentX.current;
-			const lassoTop = lassoTopStatic + currentY.current;             // follow animation
+			const lassoTop = lassoTopStatic + currentY.current;        
 			const lassoRight = lassoLeft + spriteW;
 			const lassoBottom = lassoTop + spriteH;
 
-			// Red dot (10x10) is at the lasso's top; center is +5px down and +50px right
 			const anchorX = lassoLeft + SPRITE_SIZE;
 			const anchorY = lassoTop + 5;
 
@@ -173,7 +169,7 @@ export default function Game() {
 
 				prev.forEach(ent => {
 					const nx = ent.x + ent.velocityX * delta;
-					// off‐screen?
+					// off‐screen check
 					if (nx + SPRITE_SIZE * ent.scale < 0) return;
 
 					// entity bounds
@@ -182,7 +178,7 @@ export default function Game() {
 					const entTop = ent.y;
 					const entBottom = ent.y + SPRITE_SIZE * ent.scale;
 
-					// AABB collision test with true lasso rect
+					// AABB collision test with lasso rect
 					const hit =
 						entRight >= lassoLeft &&
 						entLeft <= lassoRight &&
@@ -208,7 +204,11 @@ export default function Game() {
 							},
 							useNativeDriver: true,
 						}).start(() => {
-							setScore(s => s + 1);
+							if (c.type === 'bull') {
+                setScore(s => s + 1);
+              } else {
+                setLives(l => Math.max(0, l - 1));
+              }
 							setCaptured(latest => latest.filter(x => x.id !== c.id));
 						});
 					});
@@ -234,16 +234,16 @@ export default function Game() {
 			{/* Moving entities */}
 			<View style={{ position: 'absolute', width, height: topHeight }}>
 				{entities.map(ent => (
-					<View
+					<Image
 						key={ent.id}
+						source={ent.type === 'bull' ? bagImg : cactusImg}
+						resizeMode="contain"
 						style={{
 							position: 'absolute',
 							left: ent.x,
 							top: ent.y,
 							width: SPRITE_SIZE * ent.scale,
 							height: SPRITE_SIZE * ent.scale,
-							backgroundColor: ent.type === 'bull' ? 'brown' : 'gray',
-							borderRadius: ent.type === 'bull' ? (SPRITE_SIZE * ent.scale) / 2 : 0,
 						}}
 					/>
 				))}
@@ -262,21 +262,21 @@ export default function Game() {
 
 			{/* Captured animations */}
 			{captured.map(c => (
-				<Animated.View
+				<Animated.Image
 					key={c.id}
+					source={c.type === 'bull' ? bagImg : cactusImg}
+					resizeMode="contain"
 					style={{
 						position: 'absolute',
 						width: SPRITE_SIZE * c.scale,
 						height: SPRITE_SIZE * c.scale,
 						transform: c.anim.getTranslateTransform(),
-						backgroundColor: c.type === 'bull' ? 'brown' : 'gray',
-						borderRadius: c.type === 'bull' ? (SPRITE_SIZE * c.scale) / 2 : 0,
 						zIndex: 5,
 					}}
 				/>
 			))}
 
-			{/* Lasso */}
+			{/* lasso */}
 			<Animated.View
 				style={{
 					position: 'absolute',
@@ -289,7 +289,7 @@ export default function Game() {
 					zIndex: 10,
 				}}
 			>
-				{/* Top‐middle anchor */}
+				{/* top‐middle anchor */}
 				<View
 					style={{
 						position: 'absolute',
@@ -314,7 +314,7 @@ export default function Game() {
 				}}
 			>
 				<Text style={{ marginRight: 20, fontSize: 16 }}>Score: {score}</Text>
-				<Text style={{ fontSize: 16 }}>Lives: {lives}</Text>
+				<Text style={{ fontSize: 16 }}>Lassos: {lives}</Text>
 			</View>
 		</View>
 	);
